@@ -3,6 +3,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
+const _ = require("lodash");
 
 
 const app = express();
@@ -35,6 +36,14 @@ const item3 = new Item({
 
 const defaultItems= [item1,item2,item3];
 
+const listSchema={
+  name: String,
+  items: [itemSchema]
+
+};
+
+const List = mongoose.model("List",listSchema);
+
 
 
 app.get("/", function(req, res) {
@@ -63,29 +72,78 @@ Item.find({}, function(err, foundItems){
 
 });
 
+app.get("/:customListName", function(req, res){
+  const customListName= _.capitalize(req.params.customListName);
+
+  List.findOne({name: customListName}, function(err,foundList){
+    if(!err){
+      if(!foundList){
+        const list= new List({
+          name: customListName,
+          items: defaultItems
+        });
+
+        list.save();
+        res.redirect("/"+customListName);
+
+
+      } else{
+        res.render("List",{listTitle: foundList.name, newListItems: foundList.items});
+      }
+    }
+  });
+
+
+
+});
+
+
+
 app.post("/", function(req, res){
 
   const itemName = req.body.newItem;
+  const listName= req.body.list;
 
   const item= new Item({
     name: itemName
   });
 
-  item.save();
+  if (listName=== "today"){
+    item.save();
+    res.redirect("/");
+  } else {
+    List.findOne({name: listName}, function(err,foundList){
+      foundList.items.push(item);
+      foundList.save();
+      res.redirect("/"+listName);
+    });
+  }
 
-  res.redirect("/");
 
 });
 
 app.post("/delete",function(req,res){
   const checkedItemId= req.body.checkbox;
+  const listName= req.body.listName;
 
-  Item.findByIdAndRemove(checkedItemId, function(err){
-    if(!err){
-      console.log("Successfully deleted item");
-      res.redirect("/");
-    }
-  });
+  if(listName==="today"){
+
+      Item.findByIdAndRemove(checkedItemId, function(err){
+        if(!err){
+          console.log("Successfully deleted item");
+          res.redirect("/");
+        }
+        });
+      } else{
+    List.findOneAndUpdate({name: listName},{$pull: {items: {_id: checkedItemId}}}, function(err, foundList){
+      if(!err){
+        res.redirect("/"+listName);
+      }
+    });
+
+
+}
+
 
 });
 
