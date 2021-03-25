@@ -5,6 +5,9 @@ html {
   font-family: 'helvetica neue';
 }
 
+body{
+  background: transparent;
+}
 
 h1 {
   color: #fff;
